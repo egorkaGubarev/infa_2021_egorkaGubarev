@@ -25,16 +25,6 @@ class DiscreteState: public State
 
         }
 
-        DiscreteState(std::string mode): state_{0}
-        {
-            if (contains(0) && !contains(1)){
-                std::cout << "DiscreteState is ok" << '\n';
-            }
-            else{
-                std::cerr << "Error! DiscreteState is bad" << '\n';
-            }
-        }
-
         bool contains(int s) const override
         {
             return s == state_;
@@ -52,16 +42,6 @@ class SegmentState: public State
 
         }
 
-        SegmentState(std::string mode): beg_{0}, end_{2}
-        {
-            if (!contains(-1) && contains(0) && contains(1) && contains(2) && !contains(3)){
-                std::cout << "SegmentState is ok" << '\n';
-            }
-            else{
-                std::cerr << "Error! SegmentState is bad" << '\n';
-            }
-        }
-
         bool contains(int s) const override
         {
             return s >= beg_ && s <= end_;
@@ -77,22 +57,6 @@ class UnionState: public State
         UnionState(State* state_1, State* state_2): state_1_{state_1}, state_2_{state_2}
         {
 
-        }
-
-        UnionState(std::string mode)
-        {
-            SegmentState segment_1(0, 2);
-            SegmentState segment_2(1, 3);
-            SegmentState* ptr_segment_1 = &segment_1;
-            SegmentState* ptr_segment_2 = &segment_2;
-            state_1_ = ptr_segment_1;
-            state_2_ = ptr_segment_2;
-            if (!contains(-1) && contains(0) && contains(1) && contains(2) && contains(3) && !contains(4)){
-                std::cout << "UnionState is ok" << '\n';
-            }
-            else{
-                std::cerr << "Error! UnionState is bad" << '\n';
-            }
         }
 
         bool contains(int s) const override
@@ -115,22 +79,6 @@ class SegmentSpacesState: public State
         SegmentSpacesState(State* segment, State* space): segment_{segment}, space_{space}
         {
 
-        }
-
-        SegmentSpacesState(std::string mode)
-        {
-            SegmentState segment(0, 4);
-            DiscreteState space(2);
-            SegmentState* ptr_segment = &segment;
-            DiscreteState* ptr_space = &space;
-            segment_ = ptr_segment;
-            space_ = ptr_space;
-            if (!contains(-1) && contains(0) && contains(1) && !contains(2) && contains(3) && contains(4) && !contains(5)){
-                std::cout << "SegmentSpacesState is ok" << '\n';
-            }
-            else{
-                std::cerr << "Error! SegmentSpacesState is bad" << '\n';
-            }
         }
 
         bool contains(int s) const override
@@ -157,22 +105,6 @@ class SegmentExtentionState: public State
 
         }
 
-        SegmentExtentionState(std::string mode)
-        {
-            SegmentState segment(0, 2);
-            DiscreteState extention(4);
-            SegmentState* ptr_segment = &segment;
-            DiscreteState* ptr_extention = &extention;
-            segment_ = ptr_segment;
-            extention_ = ptr_extention;
-            if (!contains(-1) && contains(0) && contains(1) && contains(2) && !contains(3) && contains(4) && !contains(5)){
-                std::cout << "SegmentExtentionState is ok" << '\n';
-            }
-            else{
-                std::cerr << "Error! SegmentExtentionState is bad" << '\n';
-            }
-        }
-
         bool contains(int s) const override
         {
             UnionState segment_extention_state(segment_, extention_);
@@ -191,25 +123,6 @@ class SegmentSpacesExtentionState: public State
         SegmentSpacesExtentionState(State* segment, State* space, State* extention): segment_{segment}, space_{space}, extention_{extention}
         {
 
-        }
-
-        SegmentSpacesExtentionState(std::string mode)
-        {
-            SegmentState segment(0, 4);
-            DiscreteState space(2);
-            DiscreteState extention(6);
-            SegmentState* ptr_segment = &segment;
-            DiscreteState* ptr_space = &space;
-            DiscreteState* ptr_extention = &extention;
-            segment_ = ptr_segment;
-            space_ = ptr_space;
-            extention_ = ptr_extention;
-            if (!contains(-1) && contains(0) && contains(1) && !contains(2) && contains(3) && contains(4) && !contains(5) && contains(6) && !contains(7)){
-                std::cout << "SegmentSpacesExtentionState is ok" << '\n';
-            }
-            else{
-                std::cerr << "Error! SegmentSpacesExtentionState is bad" << '\n';
-            }
         }
 
         bool contains(int s) const override
@@ -233,18 +146,6 @@ class SetState: public State
 
         }
 
-        SetState(std::string mode)
-        {
-            const std::set<int> set = {0, 1, 2};
-            states_ = set;
-            if (!contains(-1) && contains(0) && contains(1) && contains(2) && !contains(3)){
-                std::cout << "SetState is ok" << '\n';
-            }
-            else{
-                std::cerr << "Error! SetState is bad" << '\n';
-            }
-        }
-
         bool contains(int s) const override{
             return states_.count(s) > 0;
         }
@@ -262,22 +163,6 @@ class CrossState: public State
 
         }
 
-        CrossState(std::string mode)
-        {
-            SegmentState segment_1(0, 3);
-            SegmentState segment_2(1, 4);
-            SegmentState* ptr_segment_1 = &segment_1;
-            SegmentState* ptr_segment_2 = &segment_2;
-            state_1_ = ptr_segment_1;
-            state_2_ = ptr_segment_2;
-            if (!contains(-1) && !contains(0) && contains(1) && contains(2) && contains(3) && !contains(4) && !contains(5)){
-                std::cout << "CrossState is ok" << '\n';
-            }
-            else{
-                std::cerr << "Error! CrossState is bad" << '\n';
-            }
-        }
-
         bool contains(int s) const override
         {
             if (state_1_->contains(s) && state_2_->contains(s)){
@@ -293,6 +178,7 @@ class ProbabilityTest
         unsigned seed_;
         int test_min_, test_max_;
         std::string path_;
+
     public:
         ProbabilityTest(unsigned seed, int test_min, int test_max, std::string path):
             seed_{seed}, test_min_{test_min},test_max_{test_max}, path_{path}
@@ -336,26 +222,92 @@ class ProbabilityTest
 class Tester
 {
     public:
-        void make_test()
+        void test(State* state, int point, bool correct_result, std::string message)
         {
-            DiscreteState discrete_state("test");
-            SegmentState segment_state("test");
-            SetState set_state("test");
-            SegmentSpacesState segment_spaces_state("test");
-            SegmentExtentionState segmemt_extention_state("test");
-            SegmentSpacesExtentionState segment_spaces_extention_state("test");
-            UnionState union_state("test");
-            CrossState cross_state("test");
+            bool result = state->contains(point);
+            if (result == correct_result){
+                std::cout << message << " is ok;" << '\n';
+            }
+            else{
+                std::cerr << "----- Error! -----" << '\n';
+                std::cerr << message << " is bad;"  << '\n';
+                std::cerr << "----- Error! -----" << '\n';
+            }
         }
 };
 
+void test(Tester tester)
+{
+    DiscreteState discrete_state(0);
+    State* ptr_discrete_state = &discrete_state;
+    tester.test(ptr_discrete_state, -1, false, "Discrete outside left range");
+    tester.test(ptr_discrete_state, 0, true, "Discrete inside");
+    tester.test(ptr_discrete_state, 1, false, "Discrete outside right range");
+    SegmentState segment_state(1, 3);
+    State* ptr_segment_state = &segment_state;
+    tester.test(ptr_segment_state, 0, false, "Segment outside left range");
+    tester.test(ptr_segment_state, 1, true, "Segment left edge");
+    tester.test(ptr_segment_state, 2, true, "Segment inside");
+    tester.test(ptr_segment_state, 3, true, "Segment right edge");
+    tester.test(ptr_segment_state, 4, false, "Segment outside right range");
+    UnionState union_state(ptr_discrete_state, ptr_segment_state);
+    State* ptr_union_state = &union_state;
+    tester.test(ptr_union_state, -1, false, "Union outside left range");
+    tester.test(ptr_union_state, 0, true, "Union left edge");
+    tester.test(ptr_union_state, 1, true, "Union inside");
+    tester.test(ptr_union_state, 3, true, "Union right edge");
+    tester.test(ptr_union_state, 4, false, "Union outside right range");
+    DiscreteState point(2);
+    State* ptr_point = &point;
+    SegmentSpacesState segment_spaces_state(ptr_segment_state, ptr_point);
+    State* ptr_segment_spaces_state = &segment_spaces_state;
+    tester.test(ptr_segment_spaces_state, 0, false, "Segment with spaces outside left range");
+    tester.test(ptr_segment_spaces_state, 1, true, "Segment with spaces left edge");
+    tester.test(ptr_segment_spaces_state, 2, false, "Segment with spaces space");
+    tester.test(ptr_segment_spaces_state, 3, true, "Segment with spaces right edge");
+    tester.test(ptr_segment_spaces_state, 4, false, "Segment with spaces outside right range");
+    DiscreteState point_2(5);
+    State* ptr_point_2 = &point_2;
+    SegmentExtentionState segment_extention_state(ptr_segment_state, ptr_point_2);
+    State* ptr_segment_extention_state = &segment_extention_state;
+    tester.test(ptr_segment_extention_state, 0, false, "Segment with extention outside left range");
+    tester.test(ptr_segment_extention_state, 1, true, "Segment with extention left edge");
+    tester.test(ptr_segment_extention_state, 2, true, "Segment with extention inside");
+    tester.test(ptr_segment_extention_state, 3, true, "Segment with extention right edge");
+    tester.test(ptr_segment_extention_state, 4, false, "Segment with extention outside in middle");
+    tester.test(ptr_segment_extention_state, 5, true, "Segment with extention in extention");
+    tester.test(ptr_segment_extention_state, 6, false, "Segment with extention outside right range");
+    SegmentSpacesExtentionState segment_spaces_extention_state(ptr_segment_state, ptr_point, ptr_point_2);
+    State* ptr_segment_spaces_extention_state = &segment_spaces_extention_state;
+    tester.test(ptr_segment_spaces_extention_state, 0, false, "Segment with spaces and extention outside left range");
+    tester.test(ptr_segment_spaces_extention_state, 1, true, "Segment with spaces and extention left edge");
+    tester.test(ptr_segment_spaces_extention_state, 2, false, "Segment with spaces and extention in space");
+    tester.test(ptr_segment_spaces_extention_state, 3, true, "Segment with spaces and extention right edge");
+    tester.test(ptr_segment_spaces_extention_state, 4, false, "Segment with spaces and extention outside in middle");
+    tester.test(ptr_segment_spaces_extention_state, 5, true, "Segment with spaces and extention in extention");
+    tester.test(ptr_segment_spaces_extention_state, 6, false, "Segment with spaces and extention outside right range");
+    SetState set_state(std::set<int>{4, 6, 7, 8});
+    State* ptr_set_state = &set_state;
+    tester.test(ptr_set_state, 3, false, "Set outside left range");
+    tester.test(ptr_set_state, 4, true, "Set left in isolated point");
+    tester.test(ptr_set_state, 5, false, "Set in space");
+    tester.test(ptr_set_state, 6, true, "Set right edge");
+    tester.test(ptr_set_state, 7, true, "Set in middle");
+    tester.test(ptr_set_state, 8, true, "Set right edge");
+    tester.test(ptr_set_state, 9, false, "Set outside right range");
+    CrossState cross_state(ptr_segment_state, ptr_point);
+    State* ptr_cross_state = &cross_state;
+    tester.test(ptr_cross_state, 0, false, "Cross outside left range");
+    tester.test(ptr_cross_state, 1, false, "Cross only in one state");
+    tester.test(ptr_cross_state, 2, true, "Cross inside");
+    tester.test(ptr_cross_state, 4, false, "Cross outside right range");
+}
+
 int main(int argc, const char* argv[])
 {
-    float accuracy = 0.000001;
-    Tester unit_tester;
-    ProbabilityTest probability_tester(0, 0, 20, "result.txt");
-    unit_tester.make_test();
+    float accuracy = 0.0000001;
+    ProbabilityTest tester(0, -100, 100, "result.txt");
     SegmentState segment(0, 10);
-    probability_tester(segment, accuracy);
+    tester(segment, accuracy);
     return 0;
 }
