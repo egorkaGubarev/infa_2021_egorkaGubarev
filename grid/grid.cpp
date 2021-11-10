@@ -3,99 +3,13 @@
 typedef unsigned char uchar;
 typedef unsigned int uint;
 
-class IHandler
-{
-    public:
-        virtual void* value() = 0;
-        virtual const void* get_value() const = 0;
-        virtual ~IHandler() = default;
-};
-
-template<typename t_value>
-class TrivialHandler: public IHandler
-{
-    private:
-        t_value value_;
-    public:
-        TrivialHandler(const t_value value): value_{value}
-        {
-
-        }
-
-        void* value() override
-        {
-            t_value* const ptr_value = &value_;
-            void* const ptr_value_as_void = static_cast<void*>(ptr_value);
-            return ptr_value_as_void;
-        }
-
-        const void* get_value() const override
-        {
-            const t_value* const ptr_value = &value_;
-            const void* const ptr_value_as_void = static_cast<const void*>(ptr_value);
-            return ptr_value_as_void;
-        }
-};
-
-class Any
-{
-    private:
-        IHandler* value_;
-
-        void delete_value()
-        {
-            delete value_;
-        }
-
-    public:
-        Any(): value_{NULL}
-        {
-
-        }
-
-        template<typename t_value>
-        Any(const t_value value): value_{new TrivialHandler<t_value>(value)}
-        {
-
-        }
-
-        ~Any()
-        {
-            delete_value();
-        }
-
-        template<typename t_value>
-        void set_value(const t_value value)
-        {
-            delete_value();
-            value_ = new TrivialHandler<t_value>(value);
-        }
-
-        template<typename t_value>
-        const t_value as() const
-        {
-            IHandler& r_value_interface = *value_;
-            TrivialHandler<t_value>& r_value_casted = dynamic_cast<TrivialHandler<t_value>&>(r_value_interface);
-            const void* const ptr_value_as_void = r_value_casted.get_value();
-            const t_value* const ptr_value = static_cast<const t_value*>(ptr_value_as_void);
-            const t_value value = *ptr_value;
-            return value;
-        }
-};
-
 template<typename t_data, typename t_index>
 class Grid
 {
     private:
-        t_data* memory_;
-        t_index amount_elements_, x_size_, y_size_;
-
-        void clear()
-        {
-            for (t_index index = 0; index < amount_elements_; ++ index){
-                memory_[index] = 0;
-            }
-        }
+        t_index amount_, x_size_, y_size_;
+        t_data value_;
+        Grid* memory_;
 
         t_index get_index(t_index x_index, t_index y_index) const
         {
@@ -103,17 +17,67 @@ class Grid
             return index;
         }
 
-    public:
-        Grid(t_index x_size, t_index y_size): x_size_{x_size}, y_size_{y_size}
+        void clear()
         {
-            amount_elements_ = x_size_ * y_size_;
-            memory_ = new t_data[amount_elements_];
-            clear();
+            value_ = get_average();
+            const t_index amount = amount_;
+            for(t_index i = 0; i < amount; ++ i){
+                Grid& subgrid = memory_[i];
+                subgrid.clear();
+                subgrid.memory_ = nullptr;
+            }
+            delete[] memory_;
+            memory_ = nullptr;
+        }
+
+    public:
+        Grid(t_index x_size, t_index y_size, t_data value): x_size_{x_size}, y_size_{y_size}, value_{value}
+        {
+            amount_ = x_size_ * y_size_;
+            if(amount_ == 0){
+                memory_ = nullptr;
+            }
+            else{
+                memory_ = new Grid[amount_];
+            }
+        }
+
+        Grid(): Grid<t_data, t_index>(0, 0, 0)
+        {
+
+        }
+
+        Grid(t_index x_size, t_index y_size): Grid<t_data, t_index>(x_size, y_size, 0)
+        {
+
         }
 
         ~Grid()
         {
             delete[] memory_;
+        }
+
+        t_data get_average() const
+        {
+            if(amount_ == 0){
+                return 0;
+            }
+            else{
+                t_data sum = 0;
+                for(t_index i = 0; i < amount_; ++ i){
+                    t_data number;
+                    const Grid& element = memory_[i];
+                    if(element.is_subgrid()){
+                        number = element.get_average();
+                    }
+                    else{
+                        number = element.value_;
+                    }
+                    sum += number;
+                }
+                const t_data average = sum / amount_;
+                return average;
+            }
         }
 
         t_index get_xsize() const
@@ -126,50 +90,108 @@ class Grid
             return y_size_;
         }
 
-        Grid& make_subgrid(t_index x_index, t_index y_index, t_index x_sub_size, t_index y_sub_size)
+        bool is_subgrid() const
+        {
+            if(memory_ == nullptr){
+                return false;
+            }
+            else{
+                return true;
+            }
+        }
+
+        Grid& make_subgrid(const t_data x_index, const t_data y_index, const t_data x_sub_size, const t_data y_sub_size)
+        {
+            const t_data value = (*this)(x_index, y_index);
+            const t_index index = get_index(x_index, y_index);
+            Grid& insert = memory_[index];
+            insert.x_size_ = x_sub_size;
+            insert.y_size_ = y_sub_size;
+            const t_index amount = x_sub_size * y_sub_size;
+            insert.amount_ = amount;
+            insert.memory_ = new Grid[amount];
+            insert = value;
+            return *this;
+        }
+
+        Grid& collapse_subgrid(const t_data x_index, const t_data y_index)
         {
             const t_index index = get_index(x_index, y_index);
-            const t_data value = memory_[index];
-            Grid<t_data, t_index> subgrid(x_sub_size, y_sub_size);
-            subgrid = value;
-            Any universal_subgrid(subgrid);
-            memory_[index] = universal_subgrid;
-            return this;
+            const Grid& this_grid = *this;
+            const t_data value = this_grid(x_index, y_index);
+            Grid& element = memory_[index];
+            element.clear();
+            element.amount_ = 0;
+            element.x_size_ = 0;
+            element.y_size_ = 0;
+            element.value_ = value;
+            return *this;
+        }
+
+        Grid& get_subgrid(const t_data x_index, const t_data y_index)
+        {
+            const t_index index = get_index(x_index, y_index);
+            Grid& subgrid = memory_[index];
+            return subgrid;
+        }
+
+        const Grid& get_subgrid(const t_data x_index, const t_data y_index) const
+        {
+            const t_index index = get_index(x_index, y_index);
+            const Grid& subgrid = memory_[index];
+            return subgrid;
         }
 
         t_data operator()(t_index x_index, t_index y_index) const
         {
             t_index index = get_index(x_index, y_index);
-            t_data value = memory_[index];
+            t_data value;
+            const Grid& element = memory_[index];
+            if(element.is_subgrid()){
+                value = element.get_average();
+            }
+            else{
+                value = element.value_;
+            }
             return value;
         }
 
         t_data& operator()(t_index x_index, t_index y_index)
         {
             t_index index = y_index * x_size_ + x_index;
-            t_data& r_value = memory_[index];
-            return r_value;
+            Grid& element = memory_[index];
+            t_data& value = element.value_;
+            return value;
         }
 
-        Grid& operator =(t_data value)
+        Grid& operator=(t_data value)
         {
-            for (t_index index = 0; index < amount_elements_; ++ index){
-                memory_[index] = value;
+            for (t_index index = 0; index < amount_; ++ index){
+                Grid& element = memory_[index];
+                if(element.is_subgrid()){
+                    element = value;
+                }
+                else{
+                    element.value_ = value;
+                }
             }
             return *this;
         }
 
-        friend std::ostream& operator <<(std::ostream& out, Grid const& grid)
+        friend std::ostream& operator<<(std::ostream& out, const Grid& grid)
         {
             t_index x_size = grid.get_xsize();
-            t_index amount_elements = grid.amount_elements_;
+            t_index amount_elements = grid.amount_;
             t_index index_last = amount_elements - 1;
             for (t_index index = 0; index < amount_elements; ++ index){
-                t_data value = grid.memory_[index];
-                out << value << ' ';
+                const Grid& element = grid.memory_[index];
+                if (!element.is_subgrid()){
+                    const t_data value = element.value_;
+                    out << value;
+                }
+                out << ' ';
                 t_index index_written = index + 1;
                 t_index mod = index_written % x_size;
-
                 if (mod == 0 && index < index_last){
                     out << '\n';
                 }
@@ -177,7 +199,7 @@ class Grid
             return out;
         }
 
-        friend std::istream& operator >>(std::istream& in, Grid& grid)
+        friend std::istream& operator>>(std::istream& in, Grid& grid)
         {
             grid.clear();
             t_index amount_elements = grid.amount_elements_;
@@ -193,7 +215,7 @@ class Grid
 };
 
 template<typename t_value>
-bool is_equal(const t_value value_1, const t_value value_2)
+bool is_equal(const t_value& value_1, const t_value& value_2)
 {
     if (value_1 == value_2){
         return true;
@@ -201,6 +223,64 @@ bool is_equal(const t_value value_1, const t_value value_2)
     else{
         return false;
     }
+}
+
+template<>
+bool is_equal(const double& value_1, const double& value_2)
+{
+    const double error = 0.00001;
+    const double delta = value_2 - value_1;
+    const double abs = std::abs(delta);
+    if (abs < error){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
+template<typename t_value>
+void test(const t_value& value_1, const t_value& value_2, const std::string& message)
+{
+    const bool equal = is_equal(value_1, value_2);
+    if(equal){
+        std::cout << message << " is ok;" << '\n';
+    }
+    else{
+        std::cerr << "----- Error! -----" << '\n';
+        std::cerr << message << " is bad" << '\n';
+        std::cerr << "----- Error! -----" << '\n';
+    }
+}
+
+void average_test()
+{
+    std::cout << "     Average test" << '\n';
+    const Grid<float, uchar> empty;
+    test(empty.get_average(), 0.0f, "Empty");
+    Grid<float, uchar> one(1, 1);
+    test(one.get_average(), 0.0f, "One");
+    one = 0.1;
+    test(one.get_average(), 0.1f, "Assined");
+    Grid<double, char> big(3, 4);
+    test(big.get_average(), 0.0, "Big");
+    big = 0.2;
+    test(big.get_average(), 0.2, "Big assined");
+    big.make_subgrid(1, 2, 5, 6);
+    Grid<double, char>& subgrid = big.get_subgrid(1, 2);
+    subgrid = 0.3;
+    test(big.get_average(), 0.20833, "Subgrid");
+    subgrid(1, 2) = 0.4;
+    test(big.get_average(), 0.20861, "Various");
+    subgrid.make_subgrid(3, 4, 7, 8);
+    Grid<double, char>& second_level = subgrid.get_subgrid(3, 4);
+    second_level = 0.5;
+    test(big.get_average(), 0.20917, "Second level");
+    subgrid.collapse_subgrid(3, 4);
+    test(big.get_average(), 0.20917, "Collapse");
+    big.collapse_subgrid(1, 2);
+    test(big.get_average(), 0.20917, "Primary");
+
 }
 
 class Tester
@@ -277,20 +357,6 @@ class Tester
                 std::cerr << "----- Error! -----" << '\n';
             }
         }
-
-        template <typename t_value>
-        static void test_any(const t_value result, const t_value correct_result, const std::string message)
-        {
-            const bool is_correct = is_equal(result, correct_result);
-            if (is_correct){
-                std::cout << message << " type is ok;" << '\n';
-            }
-            else{
-                std::cerr << "----- Error! -----" << '\n';
-                std::cerr << message << " type is bad!" << '\n';
-                std::cerr << "----- Error! -----" << '\n';
-            }
-        }
 };
 
 void make_primary_test(Tester tester)
@@ -340,7 +406,6 @@ void make_primary_test(Tester tester)
     tester.test_parenthesis(x_index_double, y_index_double, double_grid, value_double, message_double);
     tester.test_x_size(double_grid, x_size_double, message_double);
     tester.test_y_size(double_grid, y_size_double, message_double);
-    std::cout << "Debug" << '\n';
 }
 
 void make_assignment_test(Tester tester)
@@ -368,36 +433,11 @@ void make_assignment_test(Tester tester)
     tester.test_assigment(double_grid, value_double, message_double);
 }
 
-void make_test_of_any(Tester tester)
-{
-    std::cout << "     Test of any" << '\n';
-    const uchar value_uchar = 'a';
-    Any any(value_uchar);
-    const uchar result_uchar = any.as<uchar>();
-    tester.test_any(result_uchar, value_uchar, "Uchar");
-    const char value_char = 'b';
-    any.set_value(value_char);
-    const char result_char = any.as<char>();
-    tester.test_any(result_char, value_char, "Char");
-    const uint value_uint = 1;
-    any.set_value(value_uint);
-    const uint result_uint = any.as<uint>();
-    tester.test_any(result_uint, value_uint, "Uint");
-    const int value_int = 2;
-    any.set_value(value_int);
-    const int result_int = any.as<int>();
-    tester.test_any(result_int, value_int, "Int");
-    const float value_float = 1;
-    any.set_value(value_float);
-    const float result_float = any.as<float>();
-    tester.test_any(result_float, value_float, "Float");
-}
-
 int main(int argc, char** argv)
 {
     Tester tester;
     make_primary_test(tester);
     make_assignment_test(tester);
-    make_test_of_any(tester);
+    average_test();
     return 0;
 }
