@@ -11,6 +11,45 @@ class Grid
         t_data value_;
         Grid* memory_;
 
+        class GridProxy
+        {
+            private:
+                Grid<t_data, t_index>& grid_ref_;
+            public:
+                GridProxy(Grid<t_data, t_index>& grid_ref): grid_ref_{grid_ref}
+                {
+
+                }
+
+                GridProxy& operator=(const t_data value)
+                {
+                    if(grid_ref_.is_subgrid()){
+                        grid_ref_ = value;
+                    }
+                    else{
+                        grid_ref_.value_ = value;
+                    }
+                    return *this;
+                }
+
+                operator Grid<t_data, t_index>&()
+                {
+                    return grid_ref_;
+                }
+
+                operator const Grid<t_data, t_index>&() const
+                {
+                    const Grid<t_data, t_index>& grid_const_ref = const_cast<const Grid<t_data, t_index>>(grid_ref_);
+                    return grid_const_ref;
+                }
+
+                operator const t_data() const
+                {
+                    const t_data average = grid_ref_.get_average();
+                    return average;
+                }
+        };
+
         t_index get_index(t_index x_index, t_index y_index) const
         {
             t_index index = y_index * x_size_ + x_index;
@@ -141,8 +180,7 @@ class Grid
         Grid& make_subgrid(const t_data x_index, const t_data y_index, const t_data x_sub_size, const t_data y_sub_size)
         {
             collapse_subgrid(x_index, y_index);
-            const Grid<t_data, t_index>& this_const_ref = *this;
-            const t_data value = this_const_ref(x_index, y_index);
+            const t_data value = (*this)(x_index, y_index);
             const t_index index = get_index(x_index, y_index);
             Grid& insert = memory_[index];
             insert.x_size_ = x_sub_size;
@@ -157,8 +195,7 @@ class Grid
         Grid& collapse_subgrid(const t_data x_index, const t_data y_index)
         {
             const t_index index = get_index(x_index, y_index);
-            const Grid& this_grid = *this;
-            const t_data value = this_grid(x_index, y_index);
+            const t_data value = (*this)(x_index, y_index);
             Grid& element = memory_[index];
             element.clear_inside();
             delete[] element.memory_;
@@ -184,25 +221,25 @@ class Grid
             return subgrid;
         }
 
-        t_data operator()(t_index x_index, t_index y_index) const
+        const t_data operator()(t_index x_index, t_index y_index) const
         {
-            t_index index = get_index(x_index, y_index);
-            t_data value;
+            const t_index index = get_index(x_index, y_index);
             const Grid& element = memory_[index];
             if(element.is_subgrid()){
-                value = element.get_average();
+                const t_data average = element.get_average();
+                return average;
             }
             else{
-                value = element.value_;
+                return element.value_;
             }
-            return value;
         }
 
-        Grid& operator()(t_index x_index, t_index y_index)
+        GridProxy operator()(t_index x_index, t_index y_index)
         {
-            t_index index = y_index * x_size_ + x_index;
+            const t_index index = get_index(x_index, y_index);
             Grid& element = memory_[index];
-            return element;
+            GridProxy my_proxy{element};
+            return my_proxy;
         }
 
         Grid& operator=(t_data value)
@@ -237,7 +274,7 @@ class Grid
                 }
                 else{
                     const t_data average = element.get_average();
-                    std::cout << average;
+                    out << average;
                 }
                 out << ' ';
                 t_index index_written = index + 1;
@@ -503,6 +540,19 @@ void test_copy()
     std::cout << "If there's no warnings or exceptions, destruction of grid with subgrid inside has gone successfully" << '\n';
 }
 
+void test_assignment()
+{
+    Grid<float, size_t> my_grid(3, 4);
+    my_grid(1, 2) = 0.1;
+    my_grid.make_subgrid(1, 3, 5, 6);
+    Grid<float, size_t>& subgrid = my_grid(1, 3);
+    subgrid(2, 4) = 0.2;
+    const Grid<float, size_t>& my_grid_const  = my_grid;
+    const Grid<float, size_t>& subgrid_const = subgrid;
+    test(my_grid_const(1, 2), 0.1f, "Assignment to main grid");
+    test(subgrid_const(2, 4), 0.2f, "Assignment to subgrid");
+}
+
 int main(int argc, char** argv)
 {
     Tester tester;
@@ -510,5 +560,6 @@ int main(int argc, char** argv)
     make_assignment_test(tester);
     average_test();
     test_copy();
+    test_assignment();
     return 0;
 }
